@@ -1,19 +1,19 @@
+// src/index.js
 require('dotenv').config();
 const express = require('express');
-const logger  = require('./utils/logger');
 const cors    = require('cors');
+const logger  = require('./utils/logger');
 
-const { verifyCBE }      = require('./services/cbeVerifier');
 const { verifyTelebirr } = require('./services/telebirrVerifier');
+const { verifyCBE }      = require('./services/cbeVerifier');
 
 const app = express();
-const DEFAULT_SUFFIX = process.env.CBE_ACCOUNT_SUFFIX;
 
+// ─── CORS: whitelist adeymart.com ─────────────────────────────────────────────
 const ALLOWED_ORIGINS = ['https://adeymart.com','https://www.adeymart.com'];
 app.use(cors({
   origin: (origin, callback) => {
-    // allow requests with no origin (e.g. curl, server-to-server)
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // allow curl / server‐to‐server
     if (ALLOWED_ORIGINS.includes(origin)) {
       return callback(null, true);
     }
@@ -21,71 +21,32 @@ app.use(cors({
   },
   methods: ['GET'],
   allowedHeaders: ['Content-Type']
-}));  
+}));
+// ──────────────────────────────────────────────────────────────────────────────
 
 app.get('/verify', async (req, res) => {
-  const { transactionId, provider, accountSuffix } = req.query;
-
+  const { transactionId } = req.query;
   if (!transactionId) {
     return res.status(400).json({ error: '`transactionId` is required' });
   }
 
-  const prov = (provider || '').toLowerCase();
-
-  async function checkTelebirr() {
-    const receipt = await verifyTelebirr(transactionId);
-    if (!receipt) return { name:'telebirr', paid:false, details:null };
-
-    const st = receipt.transactionStatus.toLowerCase();
-    const paid = (st === 'success' || st === 'completed');
-    return { name:'telebirr', paid, details:receipt };
-  }
-
-  async function checkCBE(suffix) {
-    const result = await verifyCBE(transactionId, suffix);
-    const paid   = result.success && result.status === 'paid';
-    return { name:'cbe', paid, details: result };
-  }
-
   try {
-    const results = [];
-
-    // 1) Telebirr if requested or no provider specified
-    if (!prov || prov === 'telebirr') {
-      const t = await checkTelebirr();
-      results.push(t);
-      if (prov === 'telebirr' || t.paid) {
-        return res.json({ paid: t.paid, checked: ['telebirr'], results: [t] });
-      }
+    // 1) Telebirr first
+    const tele = await verifyTelebirr(transactionId);
+    if (tele && tele.receiptNo) {
+      const st   = tele.transactionStatus.toLowerCase();
+      const paid = (st === 'success' || st === 'completed');
+      return res.json({ provider: 'telebirr', paid, details: tele });
     }
 
-    // 2) CBE if requested or (no provider and we gave an accountSuffix)
-    const suffix = accountSuffix || DEFAULT_SUFFIX;
-    if (!prov || prov === 'cbe') {
-      if (!suffix) {
-        return res.status(400).json({
-          error: '`accountSuffix` is required for CBE (or set CBE_ACCOUNT_SUFFIX in .env)'
-        });
-      }
-      const c = await checkCBE(suffix);
-      results.push(c);
-      if (prov === 'cbe' || c.paid) {
-        return res.json({ paid: c.paid, checked: ['cbe'], results: [c] });
-      }
-    }
-
-    // 3) If no one paid (or invalid provider)
-    if (prov && prov !== 'telebirr' && prov !== 'cbe') {
-      return res.status(400).json({ error: `invalid provider '${prov}'` });
-    }
-
-    const paidAny = results.some(r => r.paid);
-    const checked = results.map(r => r.name);
-    return res.json({ paid: paidAny, checked, results });
+    // 2) Then CBE
+    const cbe = await verifyCBE(transactionId);
+    const paid  = cbe.success && cbe.status === 'paid';
+    return res.json({ provider: 'cbe', paid, details: cbe });
 
   } catch (e) {
     logger.error('Verification error:', e);
-    return res.status(500).json({ error: e.message || 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
