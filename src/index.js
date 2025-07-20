@@ -73,7 +73,7 @@ app.get('/verify', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 6020;
 app.listen(PORT, () =>
   logger.info(`🚀 Server listening on http://localhost:${PORT}`)
 );
