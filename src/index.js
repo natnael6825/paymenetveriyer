@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const logger  = require('./utils/logger');
+const cors    = require('cors');
+
 const { verifyCBE }      = require('./services/cbeVerifier');
 const { verifyTelebirr } = require('./services/telebirrVerifier');
 
