@@ -96,7 +96,7 @@ async function verifyCBE(reference, accountSuffix) {
         '--disable-setuid-sandbox',
         '--ignore-certificate-errors'
       ],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
+      executablePath: '/usr/bin/chromium-browser',
     });
     const page = await browser.newPage();
 
