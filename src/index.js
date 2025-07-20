@@ -9,7 +9,7 @@ const { verifyTelebirr } = require('./services/telebirrVerifier');
 const app = express();
 const DEFAULT_SUFFIX = process.env.CBE_ACCOUNT_SUFFIX;
 
-const ALLOWED_ORIGINS = ['https://adymenat'];
+const ALLOWED_ORIGINS = ['https://adeymart.com','https://www.adeymart.com'];
 app.use(cors({
   origin: (origin, callback) => {
     // allow requests with no origin (e.g. curl, server-to-server)
