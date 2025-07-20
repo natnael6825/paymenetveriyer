@@ -45,7 +45,6 @@ function parseTelebirrJson(json) {
 async function fetchFromPrimarySource(ref, baseUrl) {
   try {
     logger.info(`Fetching Telebirr HTML: ${baseUrl}${ref}`);
-    // ← here’s the 15s timeout you can increase:
     const resp = await axios.get(baseUrl + ref, { timeout: 15000 });
     return scrapeTelebirrReceipt(resp.data);
   } catch (e) {
@@ -57,12 +56,16 @@ async function fetchFromPrimarySource(ref, baseUrl) {
 async function fetchFromProxySource(ref, proxyUrl) {
   try {
     logger.info(`Fetching Telebirr JSON proxy: ${proxyUrl}${ref}`);
-    // ← and here too, if you want to give the proxy more time:
     const resp = await axios.get(proxyUrl + ref, {
       timeout: 15000,
       headers: { Accept: 'application/json', 'User-Agent': 'VerifierAPI/1.0' }
     });
-    …
+    let data = resp.data;
+    if (typeof data === 'string') {
+      try { data = JSON.parse(data); }
+      catch { return scrapeTelebirrReceipt(resp.data); }
+    }
+    return parseTelebirrJson(data) || scrapeTelebirrReceipt(resp.data);
   } catch (e) {
     logger.error('Proxy Telebirr fetch error:', e);
     return null;
