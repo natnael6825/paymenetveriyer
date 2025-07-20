@@ -9,7 +9,19 @@ const { verifyTelebirr } = require('./services/telebirrVerifier');
 const app = express();
 const DEFAULT_SUFFIX = process.env.CBE_ACCOUNT_SUFFIX;
 
-app.use(cors());   
+const ALLOWED_ORIGINS = ['https://adymenat'];
+app.use(cors({
+  origin: (origin, callback) => {
+    // allow requests with no origin (e.g. curl, server-to-server)
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) {
+      return callback(null, true);
+    }
+    callback(new Error(`CORS policy: Origin '${origin}' not allowed`));
+  },
+  methods: ['GET'],
+  allowedHeaders: ['Content-Type']
+}));  
 
 app.get('/verify', async (req, res) => {
   const { transactionId, provider, accountSuffix } = req.query;
