@@ -7,6 +7,8 @@ const { verifyTelebirr } = require('./services/telebirrVerifier');
 const app = express();
 const DEFAULT_SUFFIX = process.env.CBE_ACCOUNT_SUFFIX;
 
+app.use(cors());   
+
 app.get('/verify', async (req, res) => {
   const { transactionId, provider, accountSuffix } = req.query;
 
