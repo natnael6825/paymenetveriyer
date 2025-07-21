@@ -1,4 +1,3 @@
-// src/index.js
 require('dotenv').config();
 const express = require('express');
 const cors    = require('cors');
@@ -7,17 +6,21 @@ const logger  = require('./utils/logger');
 const { verifyTelebirr } = require('./services/telebirrVerifier');
 const { verifyCBE }      = require('./services/cbeVerifier');
 
+    const expectedCBEAccount = '1000158003582';
+    const expectedCBEName    = 'Nathnael Fikrie Kemal';
+          const expectedTelebirrNo = '251935148825'; // full version of 0935148825
+      const expectedName       = 'NATNAEL FIKRE KEMAL';
+
+      
+
 const app = express();
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
-// Only allow your frontends at adeymart.com
-const ALLOWED_ORIGINS = ['https://adeymart.com','https://www.adeymart.com'];
+const ALLOWED_ORIGINS = ['https://adeymart.com', 'https://www.adeymart.com'];
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // allow curl or server-to-server
-    if (ALLOWED_ORIGINS.includes(origin)) {
-      return callback(null, true);
-    }
+    if (!origin) return callback(null, true); // allow curl/server-to-server
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
     callback(new Error(`CORS policy: Origin '${origin}' not allowed`));
   },
   methods: ['GET'],
@@ -25,18 +28,50 @@ app.use(cors({
 }));
 // ──────────────────────────────────────────────────────────────────────────────
 
+// Helper to match masked accounts
+function isExpectedMaskedMatch(actualMasked, expectedFull) {
+  if (!actualMasked || !expectedFull) return false;
+
+  const cleanActual = actualMasked.replace(/\s/g, '');
+  const cleanExpected = expectedFull.replace(/\s/g, '');
+
+  const actualFirst4 = cleanActual.slice(0, 4).replace(/\*/g, '');
+  const actualLast4  = cleanActual.slice(-4);
+  const expectedFirst4 = cleanExpected.slice(0, 4);
+  const expectedLast4  = cleanExpected.slice(-4);
+
+  return (
+    actualLast4 === expectedLast4 &&
+    actualFirst4 && expectedFirst4 &&
+    expectedFirst4.includes(actualFirst4)
+  );
+}
+
 app.get('/verify', async (req, res) => {
   const { transactionId } = req.query;
+
   if (!transactionId) {
     return res.status(400).json({ error: '`transactionId` is required' });
   }
 
   try {
-    // 1) Telebirr first
+    // ─── TELEBIRR CHECK ──────────────────────────────────────
     const tele = await verifyTelebirr(transactionId);
     if (tele && tele.receiptNo) {
-      const st   = tele.transactionStatus.toLowerCase();
-      const paid = (st === 'success' || st === 'completed');
+      const status = tele.transactionStatus?.toLowerCase();
+      let paid = status === 'completed' || status === 'success';
+
+
+
+      const nameMatch    = tele.creditedPartyName?.toLowerCase() === expectedName.toLowerCase();
+      const accountMatch = isExpectedMaskedMatch(tele.creditedPartyAccountNo, expectedTelebirrNo);
+
+
+ if (paid && nameMatch && accountMatch) {
+        paid=true 
+      } else {
+        paid= false 
+      }
 
       return res.json({
         provider: 'telebirr',
@@ -56,33 +91,43 @@ app.get('/verify', async (req, res) => {
         }
       });
     }
+console.log("sdddddddddddddddd",transactionId)
+    // ─── CBE CHECK ────────────────────────────────────────────
+    const cbe = await verifyCBE(transactionId);
+    let paidCBE = cbe.success && cbe.status === 'paid';
 
-    // 2) Fallback to CBE (treat transactionId as the full CBE ID)
-    const cbeRaw = await verifyCBE(transactionId);
-    const paidCBE = cbeRaw.success && cbeRaw.status === 'paid';
 
-    // Map into the same structure as Telebirr
+
+    console.log("sdcsd",cbe.receiverAccount)
+
+    const nameMatch    = cbe.receiver?.toLowerCase() === expectedCBEName.toLowerCase();
+    const accountMatch = isExpectedMaskedMatch(cbe.receiverAccount, expectedCBEAccount);
+
+
+ if (paidCBE && nameMatch && accountMatch) {
+        paidCBE=true 
+      } else {
+        paidCBE= false 
+      }
+
+
+
     return res.json({
       provider: 'cbe',
       paid: paidCBE,
+
       details: {
-        payerName:             cbeRaw.payer            || null,
-        payerTelebirrNo:       cbeRaw.payerAccount     || null,    // repurpose this field
-        creditedPartyName:     cbeRaw.receiver         || null,    // repurpose
-        creditedPartyAccountNo:cbeRaw.receiverAccount  || null,    // repurpose
-        transactionStatus:     paidCBE ? 'Completed' : 'Unpaid',   // align naming
-        receiptNo:             cbeRaw.reference        || null,
-        paymentDate:           cbeRaw.date
-                                  ? cbeRaw.date.toISOString()
-                                  : null,
-        settledAmount:         cbeRaw.amount != null
-                                  ? `${cbeRaw.amount} ETB`
-                                  : null,
+        payerName:             cbe.payer            || null,
+        payerTelebirrNo:       cbe.payerAccount     || null,
+        creditedPartyName:     cbe.receiver         || null,
+        creditedPartyAccountNo:cbe.receiverAccount  || null,
+        transactionStatus:     paidCBE ? 'Completed' : 'Unpaid',
+        receiptNo:             cbe.reference        || null,
+        paymentDate:           cbe.date ? cbe.date.toISOString() : null,
+        settledAmount:         cbe.amount != null ? `${cbe.amount} ETB` : null,
         serviceFee:            null,
         serviceFeeVAT:         null,
-        totalPaidAmount:       cbeRaw.amount != null
-                                  ? `${cbeRaw.amount} ETB`
-                                  : null
+        totalPaidAmount:       cbe.amount != null ? `${cbe.amount} ETB` : null
       }
     });
 

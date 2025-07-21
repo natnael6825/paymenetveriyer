@@ -60,31 +60,39 @@ async function parseCBEReceipt(buffer) {
  * Treats `reference` as the full CBE ID.
  */
 async function verifyCBE(reference) {
-  const url = `https://apps.cbe.com.et:100/?id=${reference}`;
   const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
-  // 1) Try direct PDF fetch
-  try {
-    logger.info(`🔎 CBE direct PDF fetch: ${url}`);
-    const resp = await axios.get(url, {
-      httpsAgent,
-      responseType: 'arraybuffer',
-      headers: { 'User-Agent':'Mozilla/5.0', 'Accept':'application/pdf' },
-      timeout: 30000
-    });
-    return await parseCBEReceipt(resp.data);
-  } catch (_) {
-    logger.warn('CBE direct failed, falling back to Puppeteer');
+  const urls = [
+    `https://apps.cbe.com.et:100/BranchReceipt/${reference}`, // common for agent receipts
+    `https://apps.cbe.com.et:100/?id=${reference}`             // fallback/default path
+  ];
+
+  for (const url of urls) {
+    try {
+      logger.info(`🔎 Trying CBE direct PDF fetch: ${url}`);
+      const resp = await axios.get(url, {
+        httpsAgent,
+        responseType: 'arraybuffer',
+        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/pdf' },
+        timeout: 30000
+      });
+
+      const parsed = await parseCBEReceipt(resp.data);
+      if (parsed.success) return parsed;
+    } catch (err) {
+      logger.warn(`CBE URL failed: ${url}`);
+    }
   }
 
-  // 2) Fallback via Puppeteer
+  // ─── FALLBACK: PUPPETEER ─────────────────────────────────────
   let browser;
   try {
     browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox','--disable-setuid-sandbox','--ignore-certificate-errors'],
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--ignore-certificate-errors'],
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
     });
+
     const page = await browser.newPage();
     let pdfUrl = null;
 
@@ -94,9 +102,13 @@ async function verifyCBE(reference) {
       }
     });
 
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+    const fallbackPageUrl = `https://apps.cbe.com.et:100/BranchReceipt/${reference}`;
+    logger.info(`🔄 Trying CBE Puppeteer fallback: ${fallbackPageUrl}`);
+    await page.goto(fallbackPageUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
     await page.waitForTimeout(3000);
     await browser.close();
+
+    console.log("SDcsdvd56468461")
 
     if (!pdfUrl) {
       return { success: false, status: 'unpaid', error: 'No PDF detected' };
