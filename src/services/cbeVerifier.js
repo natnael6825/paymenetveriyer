@@ -90,7 +90,7 @@ async function verifyCBE(reference) {
     browser = await puppeteer.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--ignore-certificate-errors'],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
+      executablePath: '/usr/bin/chromium-browser' || undefined
     });
 
     const page = await browser.newPage();
