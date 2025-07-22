@@ -90,7 +90,7 @@ async function verifyCBE(reference) {
     browser = await puppeteer.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--ignore-certificate-errors'],
-      executablePath: '/usr/bin/chromium-browser' || undefined
+      executablePath: '/usr/bin/chromium-browser' 
     });
 
     const page = await browser.newPage();
@@ -105,8 +105,7 @@ async function verifyCBE(reference) {
     const fallbackPageUrl = `https://apps.cbe.com.et:100/BranchReceipt/${reference}`;
     logger.info(`🔄 Trying CBE Puppeteer fallback: ${fallbackPageUrl}`);
     await page.goto(fallbackPageUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
-    await page.waitForTimeout(3000);
-    await browser.close();
+await new Promise(res => setTimeout(res, 3000));    await browser.close();
 
     console.log("SDcsdvd56468461")
 

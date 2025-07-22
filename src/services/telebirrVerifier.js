@@ -45,7 +45,7 @@ function parseTelebirrJson(json) {
 async function fetchFromPrimarySource(ref, baseUrl) {
   try {
     logger.info(`Fetching Telebirr HTML: ${baseUrl}${ref}`);
-    const resp = await axios.get(baseUrl + ref, { timeout: 15000 });
+    const resp = await axios.get(baseUrl + ref, { timeout: 30000 });
     return scrapeTelebirrReceipt(resp.data);
   } catch (e) {
     logger.error('Primary Telebirr fetch error:', e);
