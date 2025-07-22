@@ -53,6 +53,8 @@ function isExpectedMaskedMatch(actualMasked, expectedFull) {
 app.post('/verify', async (req, res) => {
   let  transactionId  = req.body.transactionId;
 
+ transactionId=transactionId.toUpperCase();
+
   if (!transactionId) {
     return res.status(400).json({ error: '`transactionId` is required' });
   }
