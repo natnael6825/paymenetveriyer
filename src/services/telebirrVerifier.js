@@ -57,7 +57,7 @@ async function fetchFromProxySource(ref, proxyUrl) {
   try {
     logger.info(`Fetching Telebirr JSON proxy: ${proxyUrl}${ref}`);
     const resp = await axios.get(proxyUrl + ref, {
-      timeout: 15000,
+      timeout: 30000,
       headers: { Accept: 'application/json', 'User-Agent': 'VerifierAPI/1.0' }
     });
     let data = resp.data;
