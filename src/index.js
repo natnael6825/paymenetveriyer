@@ -6,14 +6,17 @@ const logger  = require('./utils/logger');
 const { verifyTelebirr } = require('./services/telebirrVerifier');
 const { verifyCBE }      = require('./services/cbeVerifier');
 
-    const expectedCBEAccount = '1000158003582';
-    const expectedCBEName    = 'Nathnael Fikrie Kemal';
-          const expectedTelebirrNo = '251935148825'; // full version of 0935148825
-      const expectedName       = 'NATNAEL FIKRE KEMAL';
+    const expectedCBEAccount = '1000281578859';
+    const expectedCBEName    = 'YEGETA CHERINET NEGASH';
+          const expectedTelebirrNo = '251919049024'; // full version of 0935148825
+      const expectedName       = 'yegeta cherenet negash';
 
       
 
 const app = express();
+
+app.use(express.json());
+
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 const ALLOWED_ORIGINS = ['https://adeymart.com', 'https://www.adeymart.com'];
@@ -47,8 +50,8 @@ function isExpectedMaskedMatch(actualMasked, expectedFull) {
   );
 }
 
-app.get('/verify', async (req, res) => {
-  const { transactionId } = req.query;
+app.post('/verify', async (req, res) => {
+  let  transactionId  = req.body.transactionId;
 
   if (!transactionId) {
     return res.status(400).json({ error: '`transactionId` is required' });
@@ -91,14 +94,18 @@ app.get('/verify', async (req, res) => {
         }
       });
     }
-console.log("sdddddddddddddddd",transactionId)
+
+    if (transactionId.length < 15) {
+  transactionId += '81578859';
+}
+
+
     // ─── CBE CHECK ────────────────────────────────────────────
     const cbe = await verifyCBE(transactionId);
     let paidCBE = cbe.success && cbe.status === 'paid';
 
 
 
-    console.log("sdcsd",cbe.receiverAccount)
 
     const nameMatch    = cbe.receiver?.toLowerCase() === expectedCBEName.toLowerCase();
     const accountMatch = isExpectedMaskedMatch(cbe.receiverAccount, expectedCBEAccount);
